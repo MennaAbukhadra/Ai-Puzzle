@@ -1,12 +1,13 @@
 import streamlit as st
 import random
+import time
 from heapq import heappush, heappop
 
-#! Page config
+#! Page setup
 st.set_page_config(page_title="8-Puzzle Game", layout="centered")
 
 st.title("🧩 8-Puzzle Game")
-st.caption("Play manually or solve using A* Search")
+st.caption("Play manually or solve using A* Search Algorithm")
 
 st.divider()
 
@@ -17,17 +18,16 @@ GOAL = (
     7, 8, 0
 )
 
-#! Heuristic: Manhattan Distance
+#! Manhattan Distance heuristic
 def heuristic(state):
     distance = 0
     for i in range(9):
-        if state[i] == 0:
-            continue
-        goal_index = GOAL.index(state[i])
-        distance += abs(i//3 - goal_index//3) + abs(i%3 - goal_index%3)
+        if state[i] != 0:
+            gi = GOAL.index(state[i])
+            distance += abs(i//3 - gi//3) + abs(i%3 - gi%3)
     return distance
 
-#! Generate neighbor states
+#! Generate neighbors
 def get_neighbors(state):
     neighbors = []
     index = state.index(0)
@@ -81,8 +81,32 @@ def shuffle():
 if "state" not in st.session_state:
     st.session_state.state = shuffle()
 
-#! Puzzle board
-st.subheader("🎮 Play the Puzzle")
+#! Placeholder for animation
+board_placeholder = st.empty()
+
+#! Draw puzzle function
+def draw_board(state):
+    for i in range(3):
+        cols = st.columns(3)
+        for j in range(3):
+            val = state[i*3 + j]
+            if val == 0:
+                cols[j].button(
+                    "",
+                    disabled=True,
+                    use_container_width=True,
+                    key=f"e-{i}-{j}-{time.time()}"
+                )
+            else:
+                cols[j].button(
+                    str(val),
+                    disabled=True,
+                    use_container_width=True,
+                    key=f"t-{i}-{j}-{time.time()}"
+                )
+
+#! Manual play (normal buttons)
+st.subheader("🎮 Play")
 
 for i in range(3):
     cols = st.columns(3)
@@ -90,10 +114,7 @@ for i in range(3):
         val = st.session_state.state[i*3 + j]
 
         if val == 0:
-            cols[j].markdown(
-                "<div style='height:70px;background:#111;border-radius:10px'></div>",
-                unsafe_allow_html=True
-            )
+            cols[j].button("", disabled=True, use_container_width=True)
         else:
             if cols[j].button(str(val), key=f"{i}-{j}", use_container_width=True):
                 zero = st.session_state.state.index(0)
@@ -104,7 +125,7 @@ for i in range(3):
                     st.session_state.state = tuple(new_state)
                     st.rerun()
 
-#! Status message
+#! Solved message
 if st.session_state.state == GOAL:
     st.success("🎉 Puzzle Solved!")
 
@@ -117,9 +138,13 @@ with c1:
     if st.button("🤖 Solve using A*"):
         path = astar(st.session_state.state)
         if path:
-            for step in path[1:]:
-                st.session_state.state = step
-                st.rerun()
+            for step in path:
+                board_placeholder.container()
+                with board_placeholder:
+                    draw_board(step)
+                time.sleep(0.25)  # smooth continuous animation
+            st.session_state.state = path[-1]
+            st.rerun()
 
 with c2:
     if st.button("🔄 Shuffle"):
